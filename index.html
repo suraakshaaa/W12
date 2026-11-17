@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chart.js Demo</title>
+</head>
+<body>
+
+<h1>Chart.js: switching views and clicking bars</h1>
+
+<p>Library: Chart.js 4.4.1. In my meteorite project it draws a bar chart of 30 NASA meteorites. Buttons switch what the chart shows (mass or year), and clicking a bar selects that rock.</p>
+
+<h2>What works</h2>
+<ul>
+<li>Drawing a bar chart from a list of records is quick.</li>
+<li>A log scale makes both a 60,000 kg meteorite and a 100 g one visible on the same chart.</li>
+<li>Colouring each bar by rock type, and highlighting the selected bar, works with a function in the dataset options.</li>
+</ul>
+
+<h2>What does not work</h2>
+<p><b>Problem 1: "Canvas is already in use."</b> A Chart.js chart owns the canvas it is drawn on. When a toggle button runs <code>new Chart(...)</code> on the same canvas again, Chart.js throws an error and the chart does not change. The fix is to call <code>chart.destroy()</code> before building the new chart.</p>
+<p><b>Problem 2: destroying the chart inside its own click handler.</b> If a bar click calls <code>destroy()</code> inside the chart's <code>onClick</code>, Chart.js is still handling that click and then fails with "Cannot read properties of undefined (reading 'handleEvent')". The fix is to wait with <code>setTimeout(..., 0)</code> and rebuild after the click has finished.</p>
+
+<h2>Try it: broken version</h2>
+<p>Click a button, then click a bar. Errors appear in the box under the chart.</p>
+<p>
+<button id="b-mass" type="button">Show mass</button>
+<button id="b-year" type="button">Show year</button>
+</p>
+<div style="position:relative;height:700px"><canvas id="broken" aria-label="Bar chart of 30 meteorites (broken version)" role="img"></canvas></div>
+<p>Selected rock: <span id="b-sel">none</span></p>
+<pre id="b-log">Errors: none yet</pre>
+
+<h2>Try it: fixed version</h2>
+<p>Same buttons, same chart.</p>
+<p>
+<button id="f-mass" type="button">Show mass</button>
+<button id="f-year" type="button">Show year</button>
+</p>
+<div style="position:relative;height:700px"><canvas id="fixed" aria-label="Bar chart of 30 meteorites (fixed version)" role="img"></canvas></div>
+<p>Selected rock: <span id="f-sel">none</span></p>
+<pre id="f-log">Errors: none yet</pre>
+
+<h2>The code</h2>
+<p>Broken:</p>
+<pre>
+// toggle button
+new Chart(canvas, config);              // second call: "Canvas is already in use"
+
+// bar click
+onClick: (e, items) =&gt; {
+  selected = rocks[items[0].index].id;
+  chart.destroy();                      // destroys the chart while it is still handling this click
+  chart = new Chart(canvas, config);
+}
+</pre>
+<p>Fixed:</p>
+<pre>
+// toggle button
+chart.destroy();
+chart = new Chart(canvas, config);
+
+// bar click
+onClick: (e, items) =&gt; {
+  const id = rocks[items[0].index].id;
+  setTimeout(() =&gt; {                    // wait until Chart.js has finished with the click
+    selected = id;
+    chart.destroy();
+    chart = new Chart(canvas, config);
+  }, 0);
+}
+</pre>
+
+<p>Data: <a href="https://data.nasa.gov/dataset/meteorite-landings">NASA Meteorite Landings</a>. 30 rocks, 6 from each of 5 categories.</p>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+<script>
+const ROCKS = [{"id": 11890, "name": "Hoba", "category": "Iron", "massG": 60000000, "year": 1920}, {"id": 23593, "name": "Sikhote-Alin", "category": "Iron", "massG": 23000000, "year": 1947}, {"id": 15419, "name": "Mariaville", "category": "Iron", "massG": 340, "year": 1898}, {"id": 24173, "name": "View Hill", "category": "Iron", "massG": 33600, "year": 1952}, {"id": 10118, "name": "F\u00f6llinge", "category": "Iron", "massG": 400, "year": 1932}, {"id": 16944, "name": "Neptune Mountains", "category": "Iron", "massG": 1070, "year": 1964}, {"id": 5136, "name": "Brenham", "category": "Stony-iron", "massG": 4300000, "year": 1882}, {"id": 18019, "name": "Omolon", "category": "Stony-iron", "massG": 250000, "year": 1981}, {"id": 15426, "name": "Marjalahti", "category": "Stony-iron", "massG": 45000, "year": 1902}, {"id": 23911, "name": "Thiel Mountains", "category": "Stony-iron", "massG": 31700, "year": 1962}, {"id": 7709, "name": "Donnybrook", "category": "Stony-iron", "massG": 414, "year": 1918}, {"id": 12060, "name": "Itzawisis", "category": "Stony-iron", "massG": 350, "year": 1946}, {"id": 12171, "name": "Jilin", "category": "Stony", "massG": 4000000, "year": 1976}, {"id": 11904, "name": "Honolulu", "category": "Stony", "massG": 2420, "year": 1825}, {"id": 378, "name": "Adelie Land", "category": "Stony", "massG": 1000, "year": 1912}, {"id": 10018, "name": "Ella Island", "category": "Stony", "massG": 7500, "year": 1971}, {"id": 10939, "name": "Gobabeb", "category": "Stony", "massG": 27000, "year": 1969}, {"id": 44877, "name": "Cerro La Tiza", "category": "Stony", "massG": 3740, "year": 2002}, {"id": 2278, "name": "Allende", "category": "Carbonaceous", "massG": 2000000, "year": 1969}, {"id": 16713, "name": "Mokoia", "category": "Carbonaceous", "massG": 4500, "year": 1908}, {"id": 30726, "name": "Isheyevo", "category": "Carbonaceous", "massG": 16000, "year": 2003}, {"id": 10855, "name": "Gao-Guenie (b)", "category": "Carbonaceous", "massG": 344, "year": 2002}, {"id": 23192, "name": "Sayama", "category": "Carbonaceous", "massG": 430, "year": 1986}, {"id": 16989, "name": "Nogoya", "category": "Carbonaceous", "massG": 4000, "year": 1879}, {"id": 30386, "name": "Zagami", "category": "Martian", "massG": 18000, "year": 1962}, {"id": 23530, "name": "Shergotty", "category": "Martian", "massG": 5000, "year": 1865}, {"id": 16651, "name": "Miller Range 03346", "category": "Martian", "massG": 715.2, "year": 2003}, {"id": 30341, "name": "Yamato 980459", "category": "Martian", "massG": 82.46, "year": 1998}, {"id": 12412, "name": "Lafayette (stone)", "category": "Martian", "massG": 800, "year": 1931}, {"id": 10950, "name": "Governador Valadares", "category": "Martian", "massG": 158, "year": 1958}];
+const COLORS = { 'Iron':'#1b8aa6', 'Stony-iron':'#d9701c', 'Stony':'#c23a86', 'Carbonaceous':'#555555', 'Martian':'#c8301f' };
+
+function makeConfig(view, selectedId, onClick){
+  const mass = view === 'mass';
+  return {
+    type: 'bar',
+    data: {
+      labels: ROCKS.map(r => r.name),
+      datasets: [{
+        label: mass ? 'Mass (g)' : 'Year',
+        data: ROCKS.map(r => mass ? r.massG : r.year),
+        backgroundColor: ROCKS.map(r => r.id === selectedId ? '#000000' : COLORS[r.category])
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      onClick: onClick,
+      scales: { x: mass ? { type: 'logarithmic' } : { min: 1700 } },
+      plugins: { legend: { display: false } }
+    }
+  };
+}
+const $ = id => document.getElementById(id);
+
+/* ---------- BROKEN ---------- */
+const bCanvas = $('broken');
+let bView = 'mass', bSel = null, bChart;
+let bErrors = [];
+function bLog(msg){ bErrors.push(msg); $('b-log').textContent = 'Errors:\n' + bErrors.join('\n'); }
+function bClick(evt, items){
+  if (!items.length) return;
+  bSel = ROCKS[items[0].index].id;
+  $('b-sel').textContent = ROCKS[items[0].index].name;
+  bChart.destroy();                                  // problem 2
+  bChart = new Chart(bCanvas, makeConfig(bView, bSel, bClick));
+}
+bChart = new Chart(bCanvas, makeConfig(bView, bSel, bClick));
+function bToggle(view){
+  bView = view;
+  try { new Chart(bCanvas, makeConfig(bView, bSel, bClick)); }   // problem 1
+  catch (e) { bLog('Toggle: ' + e.message); }
+}
+$('b-mass').addEventListener('click', () => bToggle('mass'));
+$('b-year').addEventListener('click', () => bToggle('year'));
+window.addEventListener('error', e => bLog('Click: ' + e.message));
+
+/* ---------- FIXED ---------- */
+const fCanvas = $('fixed');
+let fView = 'mass', fSel = null, fChart, rebuilds = 0;
+function fDraw(){
+  if (fChart) fChart.destroy();
+  fChart = new Chart(fCanvas, makeConfig(fView, fSel, fClick));
+  rebuilds++;
+  $('f-log').textContent = 'Errors: none. Chart rebuilt ' + rebuilds + ' times.';
+}
+function fClick(evt, items){
+  if (!items.length) return;
+  const r = ROCKS[items[0].index];
+  setTimeout(() => { fSel = r.id; $('f-sel').textContent = r.name; fDraw(); }, 0);
+}
+$('f-mass').addEventListener('click', () => { fView = 'mass'; fDraw(); });
+$('f-year').addEventListener('click', () => { fView = 'year'; fDraw(); });
+fDraw();
+</script>
+</body>
+</html>
